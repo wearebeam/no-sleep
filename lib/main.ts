@@ -113,6 +113,6 @@ const nativeWakeLock = () =>
   // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
   // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
   // @ts-expect-error: using non-standard standalone property
-  'wakeLock' in navigator && !window.navigator.standalone;
+  'wakeLock' in navigator && !navigator.standalone;
 
 export default nativeWakeLock() ? NoSleepNative : NoSleepVideo;
