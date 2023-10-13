@@ -53,6 +53,6 @@
   },
   "scripts": {
     "lint": "prettier --check lib",
-    "build": "npm run lint && webpack"
+    "build": "vite build"
   }
 }
