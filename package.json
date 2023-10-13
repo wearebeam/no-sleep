@@ -1,7 +1,10 @@
 {
-  "name": "nosleep.js",
+  "name": "@zakj/no-sleep",
   "version": "0.12.0",
-  "author": "Rich Tibbett",
+  "author": "Zak Johnson <me@zakj.net> (https://zakj.net)",
+  "contributors": [
+    "Rich Tibbett"
+  ],
   "license": "MIT",
   "description": "Prevent display sleep and enable wake lock in any Android or iOS web browser",
   "keywords": [
@@ -12,28 +15,44 @@
     "display",
     "sleep"
   ],
-  "main": "dist/NoSleep.min.js",
-  "module": "src/index.js",
-  "types": "nosleep.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/richtr/NoSleep.js.git"
+    "url": "https://github.com/zakj/NoSleep.js.git"
+  },
+  "prettier": "@zakj/prettier-config",
+  "eslintConfig": {
+    "extends": "@zakj",
+    "env": {
+      "node": true
+    }
   },
   "devDependencies": {
-    "babel-core": "^6.26.3",
-    "babel-loader": "^7.1.5",
-    "babel-preset-env": "^1.7.0",
-    "prettier": "^2.0.5",
-    "terser-webpack-plugin": "^3.0.2",
-    "webpack": "^4.44.0",
-    "webpack-cli": "^3.3.11"
+    "@types/dom-screen-wake-lock": "^1.0.1",
+    "@zakj/eslint-config": "^2.0.0",
+    "@zakj/prettier-config": "^2.0.0",
+    "prettier": "^3.0.3",
+    "vite": "^4.4.11",
+    "vite-plugin-dts": "^3.6.0"
   },
-  "homepage": "https://github.com/richtr/NoSleep.js",
+  "homepage": "https://github.com/zakj/NoSleep.js",
   "bugs": {
-    "url": "https://github.com/richtr/NoSleep.js/issues"
+    "url": "https://github.com/zakj/NoSleep.js/issues"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/no-sleep.umd.cjs",
+  "module": "./dist/no-sleep.js",
+  "types": "./dist/no-sleep.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/no-sleep.js",
+      "require": "./dist/no-sleep.umd.cjs"
+    }
   },
   "scripts": {
-    "lint": "prettier --check src",
+    "lint": "prettier --check lib",
     "build": "npm run lint && webpack"
   }
 }

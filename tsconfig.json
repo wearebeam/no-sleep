@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "types": ["dom-screen-wake-lock"],
+    "target": "ES2015",
+    "module": "ES2020",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
