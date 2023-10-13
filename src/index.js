@@ -1,21 +1,5 @@
 const { webm, mp4 } = require("./media.js");
 
-// Detect iOS browsers < version 10
-const oldIOS = () =>
-  typeof navigator !== "undefined" &&
-  parseFloat(
-    (
-      "" +
-      (/CPU.*OS ([0-9_]{3,4})[0-9_]{0,1}|(CPU like).*AppleWebKit.*Mobile/i.exec(
-        navigator.userAgent
-      ) || [0, ""])[1]
-    )
-      .replace("undefined", "3_2")
-      .replace("_", ".")
-      .replace("_", "")
-  ) < 10 &&
-  !window.MSStream;
-
 // Detect native Wake Lock API support
 const nativeWakeLock = () => "wakeLock" in navigator &&
   // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
@@ -34,8 +18,6 @@ class NoSleep {
       };
       document.addEventListener("visibilitychange", handleVisibilityChange);
       document.addEventListener("fullscreenchange", handleVisibilityChange);
-    } else if (oldIOS()) {
-      this.noSleepTimer = null;
     } else {
       // Set up no sleep video element
       this.noSleepVideo = document.createElement("video");
@@ -102,21 +84,6 @@ class NoSleep {
           console.error(`${err.name}, ${err.message}`);
           throw err;
         });
-    } else if (oldIOS()) {
-      this.disable();
-      console.warn(`
-        NoSleep enabled for older iOS devices. This can interrupt
-        active or long-running network requests from completing successfully.
-        See https://github.com/richtr/NoSleep.js/issues/15 for more details.
-      `);
-      this.noSleepTimer = window.setInterval(() => {
-        if (!document.hidden) {
-          window.location.href = window.location.href.split("#")[0];
-          window.setTimeout(window.stop, 0);
-        }
-      }, 15000);
-      this.enabled = true;
-      return Promise.resolve();
     } else {
       let playPromise = this.noSleepVideo.play();
       return playPromise
@@ -137,14 +104,6 @@ class NoSleep {
         this._wakeLock.release();
       }
       this._wakeLock = null;
-    } else if (oldIOS()) {
-      if (this.noSleepTimer) {
-        console.warn(`
-          NoSleep now disabled for older iOS devices.
-        `);
-        window.clearInterval(this.noSleepTimer);
-        this.noSleepTimer = null;
-      }
     } else {
       this.noSleepVideo.pause();
     }
