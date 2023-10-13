@@ -17,7 +17,10 @@ const oldIOS = () =>
   !window.MSStream;
 
 // Detect native Wake Lock API support
-const nativeWakeLock = () => "wakeLock" in navigator;
+const nativeWakeLock = () => "wakeLock" in navigator &&
+  // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
+  // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
+  !window.matchMedia('(display-mode: standalone)').matches;
 
 class NoSleep {
   constructor() {
