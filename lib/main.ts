@@ -111,7 +111,9 @@ class NoSleepVideo implements NoSleep {
 const nativeWakeLock = () =>
   // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
   // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
+  typeof navigator !== 'undefined' &&
+  'wakeLock' in navigator &&
   // @ts-expect-error: using non-standard standalone property
-  'wakeLock' in navigator && !navigator.standalone;
+  !navigator.standalone;
 
 export default nativeWakeLock() ? NoSleepNative : NoSleepVideo;
