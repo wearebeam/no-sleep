@@ -1,12 +1,22 @@
 import { mp4, webm } from './media';
 
-export interface NoSleep {
+export interface INoSleep {
   enabled: boolean;
-  enable: () => void;
-  disable: () => void;
+  enable(): void;
+  disable(): void;
 }
 
-class NoSleepNative implements NoSleep {
+class NoSleepSSR implements INoSleep {
+  enabled = false;
+  enable() {
+    throw new Error('NoSleep using SSR/no-op mode; do not call enable.');
+  }
+  disable() {
+    throw new Error('NoSleep using SSR/no-op mode; do not call disable.');
+  }
+}
+
+class NoSleepNative implements INoSleep {
   enabled = false;
   wakeLock?: WakeLockSentinel;
 
@@ -41,7 +51,7 @@ class NoSleepNative implements NoSleep {
   }
 }
 
-class NoSleepVideo implements NoSleep {
+class NoSleepVideo implements INoSleep {
   enabled = false;
   noSleepVideo: HTMLVideoElement;
 
@@ -108,12 +118,14 @@ class NoSleepVideo implements NoSleep {
 }
 
 // Detect native Wake Lock API support
-const nativeWakeLock = () =>
-  // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
-  // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
-  typeof navigator !== 'undefined' &&
-  'wakeLock' in navigator &&
-  // @ts-expect-error: using non-standard standalone property
-  !navigator.standalone;
+const defaultExport: { new (): INoSleep } =
+  typeof navigator === 'undefined'
+    ? NoSleepSSR
+    : // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
+    // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
+    // @ts-expect-error: using non-standard standalone property
+    'wakeLock' in navigator && !navigator.standalone
+    ? NoSleepNative
+    : NoSleepVideo;
 
-export default nativeWakeLock() ? NoSleepNative : NoSleepVideo;
+export default defaultExport;
