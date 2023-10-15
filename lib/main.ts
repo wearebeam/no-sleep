@@ -1,6 +1,6 @@
 import { mp4, webm } from './media';
 
-interface NoSleep {
+export interface NoSleep {
   enabled: boolean;
   enable: () => void;
   disable: () => void;
