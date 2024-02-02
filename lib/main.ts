@@ -54,12 +54,12 @@ class NoSleepNative implements INoSleep {
 class NoSleepVideo implements INoSleep {
   isEnabled = false;
   noSleepVideo: HTMLVideoElement;
-  onLogEvent?: (message: string) => void;
+  onLogEvent?: LogEventCallback;
 
   constructor(options?: {
     videoTitle?: string;
     videoSourceType?: 'webm' | 'mp4';
-    onLogEvent?: (message: string) => void;
+    onLogEvent?: LogEventCallback;
   }) {
     // Set up no sleep video element
     this.noSleepVideo = document.createElement('video');
@@ -90,33 +90,43 @@ class NoSleepVideo implements INoSleep {
       this.noSleepVideo.playbackRate = 0.1;
 
       this.noSleepVideo.addEventListener('timeupdate', () => {
+        let currentTime = this.noSleepVideo.currentTime;
+        let updatedTime;
         if (this.noSleepVideo.currentTime > 0.5) {
-          this.noSleepVideo.currentTime = Math.random() * 0.5;
+          updatedTime = this.noSleepVideo.currentTime = Math.random() * 0.5;
         }
         this.onLogEvent?.(
-          `video timeupdate Current Time: ${
-            this.noSleepVideo.currentTime
-          }, Duration: ${this.noSleepVideo.duration}, Playing: ${!this
-            .noSleepVideo.paused}, Playback Rate: ${
+          `video timeupdate Current Time: ${currentTime}, Duration: ${
+            this.noSleepVideo.duration
+          }, Playing: ${!this.noSleepVideo.paused}, Playback Rate: ${
             this.noSleepVideo.playbackRate
           }`,
+          'info',
+          'video timeupdate',
+          {
+            currentTime,
+            ...(updatedTime !== undefined ? { updatedTime } : {}),
+            duration: this.noSleepVideo.duration,
+            paused: this.noSleepVideo.paused,
+            playbackRate: this.noSleepVideo.playbackRate,
+          },
         );
       });
     });
 
     this.noSleepVideo.addEventListener('error', (e) => {
       console.error('video error', e);
-      this.onLogEvent?.(`video error: ${e}`);
+      this.onLogEvent?.(`video error: ${e}`, 'error', 'video error');
       this.isEnabled = !this.noSleepVideo.paused;
     });
 
     this.noSleepVideo.addEventListener('pause', () => {
-      this.onLogEvent?.('video pause');
+      this.onLogEvent?.('video pause', 'info', 'video pause');
       this.isEnabled = false;
     });
 
     this.noSleepVideo.addEventListener('ended', () => {
-      this.onLogEvent?.('video ended');
+      this.onLogEvent?.('video ended', 'warn', 'video ended');
       this.isEnabled = false;
     });
   }
@@ -150,12 +160,19 @@ class NoSleepVideo implements INoSleep {
   }
 }
 
+type LogEventCallback = (
+  message: string,
+  level: string,
+  type: string,
+  properties?: { [key: string]: string | number | boolean },
+) => void;
+
 // Detect native Wake Lock API support
 const defaultExport: {
   new (options?: {
     videoTitle?: string;
     videoSourceType?: 'webm' | 'mp4';
-    onLogEvent?: (message: string) => void;
+    onLogEvent?: LogEventCallback;
   }): INoSleep;
 } =
   typeof navigator === 'undefined'
