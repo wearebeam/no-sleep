@@ -54,13 +54,16 @@ class NoSleepNative implements INoSleep {
 class NoSleepVideo implements INoSleep {
   isEnabled = false;
   noSleepVideo: HTMLVideoElement;
+  onLogEvent?: (message: string) => void;
 
   constructor(options?: {
     videoTitle?: string;
     videoSourceType?: 'webm' | 'mp4';
+    onLogEvent?: (message: string) => void;
   }) {
     // Set up no sleep video element
     this.noSleepVideo = document.createElement('video');
+    this.onLogEvent = options?.onLogEvent;
 
     const videoTitle = options?.videoTitle || 'No Sleep';
     this.noSleepVideo.setAttribute('title', videoTitle);
@@ -83,11 +86,38 @@ class NoSleepVideo implements INoSleep {
     document.querySelector('body')?.append(this.noSleepVideo);
 
     this.noSleepVideo.addEventListener('loadedmetadata', () => {
+      // Use a slow playback rate to stretch the video and mitigate failures from a busy app/device
+      this.noSleepVideo.playbackRate = 0.1;
+
       this.noSleepVideo.addEventListener('timeupdate', () => {
         if (this.noSleepVideo.currentTime > 0.5) {
           this.noSleepVideo.currentTime = Math.random() * 0.5;
         }
+        this.onLogEvent?.(
+          `video timeupdate Current Time: ${
+            this.noSleepVideo.currentTime
+          }, Duration: ${this.noSleepVideo.duration}, Playing: ${!this
+            .noSleepVideo.paused}, Playback Rate: ${
+            this.noSleepVideo.playbackRate
+          }`,
+        );
       });
+    });
+
+    this.noSleepVideo.addEventListener('error', (e) => {
+      console.error('video error', e);
+      this.onLogEvent?.(`video error: ${e}`);
+      this.isEnabled = !this.noSleepVideo.paused;
+    });
+
+    this.noSleepVideo.addEventListener('pause', () => {
+      this.onLogEvent?.('video pause');
+      this.isEnabled = false;
+    });
+
+    this.noSleepVideo.addEventListener('ended', () => {
+      this.onLogEvent?.('video ended');
+      this.isEnabled = false;
     });
   }
 
@@ -125,6 +155,7 @@ const defaultExport: {
   new (options?: {
     videoTitle?: string;
     videoSourceType?: 'webm' | 'mp4';
+    onLogEvent?: (message: string) => void;
   }): INoSleep;
 } =
   typeof navigator === 'undefined'
