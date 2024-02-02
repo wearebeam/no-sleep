@@ -1,14 +1,14 @@
 import { mp4, webm } from './media';
 
 export interface INoSleep {
-  enabled: boolean;
-  enable(): void;
+  isEnabled: boolean;
+  enable(): Promise<void>;
   disable(): void;
 }
 
 class NoSleepSSR implements INoSleep {
-  enabled = false;
-  enable() {
+  isEnabled = false;
+  enable(): Promise<void> {
     throw new Error('NoSleep using SSR/no-op mode; do not call enable.');
   }
   disable() {
@@ -17,7 +17,7 @@ class NoSleepSSR implements INoSleep {
 }
 
 class NoSleepNative implements INoSleep {
-  enabled = false;
+  isEnabled = false;
   wakeLock?: WakeLockSentinel;
 
   constructor() {
@@ -30,7 +30,7 @@ class NoSleepNative implements INoSleep {
   async enable() {
     try {
       this.wakeLock = await navigator.wakeLock.request('screen');
-      this.enabled = true;
+      this.isEnabled = true;
       console.debug('Wake Lock active.');
       this.wakeLock.addEventListener('release', () => {
         // TODO: Potentially emit an event for the page to observe since
@@ -39,7 +39,7 @@ class NoSleepNative implements INoSleep {
         console.debug('Wake Lock released.');
       });
     } catch (err) {
-      this.enabled = false;
+      this.isEnabled = false;
       if (err instanceof Error) console.error(`${err.name}, ${err.message}`);
     }
   }
@@ -47,23 +47,32 @@ class NoSleepNative implements INoSleep {
   disable() {
     this.wakeLock?.release();
     this.wakeLock = undefined;
-    this.enabled = false;
+    this.isEnabled = false;
   }
 }
 
 class NoSleepVideo implements INoSleep {
-  enabled = false;
+  isEnabled = false;
   noSleepVideo: HTMLVideoElement;
 
-  constructor() {
+  constructor(options?: {
+    videoTitle?: string;
+    videoSourceType?: 'webm' | 'mp4';
+  }) {
     // Set up no sleep video element
     this.noSleepVideo = document.createElement('video');
 
-    this.noSleepVideo.setAttribute('title', 'No Sleep');
+    const videoTitle = options?.videoTitle || 'No Sleep';
+    this.noSleepVideo.setAttribute('title', videoTitle);
     this.noSleepVideo.setAttribute('playsinline', '');
 
-    this._addSourceToVideo(this.noSleepVideo, 'webm', webm);
-    this._addSourceToVideo(this.noSleepVideo, 'mp4', mp4);
+    if (options?.videoSourceType === 'webm' || !options?.videoSourceType) {
+      this._addSourceToVideo(this.noSleepVideo, 'webm', webm);
+    }
+
+    if (options?.videoSourceType === 'mp4' || !options?.videoSourceType) {
+      this._addSourceToVideo(this.noSleepVideo, 'mp4', mp4);
+    }
 
     // For iOS >15 video needs to be on the document to work as a wake lock
     Object.assign(this.noSleepVideo.style, {
@@ -74,17 +83,11 @@ class NoSleepVideo implements INoSleep {
     document.querySelector('body')?.append(this.noSleepVideo);
 
     this.noSleepVideo.addEventListener('loadedmetadata', () => {
-      if (this.noSleepVideo.duration <= 1) {
-        // webm source
-        this.noSleepVideo.setAttribute('loop', '');
-      } else {
-        // mp4 source
-        this.noSleepVideo.addEventListener('timeupdate', () => {
-          if (this.noSleepVideo.currentTime > 0.5) {
-            this.noSleepVideo.currentTime = Math.random();
-          }
-        });
-      }
+      this.noSleepVideo.addEventListener('timeupdate', () => {
+        if (this.noSleepVideo.currentTime > 0.5) {
+          this.noSleepVideo.currentTime = Math.random() * 0.5;
+        }
+      });
     });
   }
 
@@ -103,22 +106,27 @@ class NoSleepVideo implements INoSleep {
     const playPromise = this.noSleepVideo.play();
     try {
       const res = await playPromise;
-      this.enabled = true;
+      this.isEnabled = true;
       return res;
     } catch (err) {
-      this.enabled = false;
+      this.isEnabled = false;
       if (err instanceof Error) console.error(`${err.name}, ${err.message}`);
     }
   }
 
   disable() {
     this.noSleepVideo.pause();
-    this.enabled = false;
+    this.isEnabled = false;
   }
 }
 
 // Detect native Wake Lock API support
-const defaultExport: { new (): INoSleep } =
+const defaultExport: {
+  new (options?: {
+    videoTitle?: string;
+    videoSourceType?: 'webm' | 'mp4';
+  }): INoSleep;
+} =
   typeof navigator === 'undefined'
     ? NoSleepSSR
     : // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
