@@ -1,5 +1,5 @@
 {
-  "name": "@sgilroy/no-sleep",
+  "name": "@scottjgilroy/no-sleep",
   "version": "0.14.0",
   "author": "Scott Gilroy <scottjgilroy@gmail.com>",
   "contributors": [
@@ -18,7 +18,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/zakj/NoSleep.js.git"
+    "url": "https://github.com/sgilroy/no-sleep.git"
   },
   "prettier": "@zakj/prettier-config",
   "eslintConfig": {
