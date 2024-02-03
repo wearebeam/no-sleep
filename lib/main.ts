@@ -4,6 +4,7 @@ export interface INoSleep {
   isEnabled: boolean;
   enable(): Promise<void>;
   disable(): void;
+  dispose(): void;
 }
 
 class NoSleepSSR implements INoSleep {
@@ -14,6 +15,7 @@ class NoSleepSSR implements INoSleep {
   disable() {
     throw new Error('NoSleep using SSR/no-op mode; do not call disable.');
   }
+  dispose() {}
 }
 
 class NoSleepNative implements INoSleep {
@@ -21,10 +23,13 @@ class NoSleepNative implements INoSleep {
   wakeLock?: WakeLockSentinel;
 
   constructor() {
-    const handleVisibilityChange = () =>
-      this.wakeLock && document.visibilityState === 'visible' && this.enable();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('fullscreenchange', handleVisibilityChange);
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    document.addEventListener('fullscreenchange', this.handleVisibilityChange);
+  }
+
+  handleVisibilityChange() {
+    this.wakeLock && document.visibilityState === 'visible' && this.enable();
   }
 
   async enable() {
@@ -47,6 +52,26 @@ class NoSleepNative implements INoSleep {
   disable() {
     this.wakeLock?.release();
     this.wakeLock = undefined;
+    this.isEnabled = false;
+  }
+
+  dispose() {
+    // Remove event listeners
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange,
+    );
+    document.removeEventListener(
+      'fullscreenchange',
+      this.handleVisibilityChange,
+    );
+
+    // Release the wake lock if it exists
+    if (this.wakeLock) {
+      this.wakeLock.release();
+      this.wakeLock = undefined;
+    }
+
     this.isEnabled = false;
   }
 }
@@ -85,50 +110,65 @@ class NoSleepVideo implements INoSleep {
     });
     document.querySelector('body')?.append(this.noSleepVideo);
 
-    this.noSleepVideo.addEventListener('loadedmetadata', () => {
-      // Use a slow playback rate to stretch the video and mitigate failures from a busy app/device
-      this.noSleepVideo.playbackRate = 0.1;
+    this.handleLoadedMetadata = this.handleLoadedMetadata.bind(this);
+    this.noSleepVideo.addEventListener(
+      'loadedmetadata',
+      this.handleLoadedMetadata,
+    );
 
-      this.noSleepVideo.addEventListener('timeupdate', () => {
-        let currentTime = this.noSleepVideo.currentTime;
-        let updatedTime;
-        if (this.noSleepVideo.currentTime > 0.5) {
-          updatedTime = this.noSleepVideo.currentTime = Math.random() * 0.5;
-        }
-        this.onLogEvent?.(
-          `video timeupdate Current Time: ${currentTime}, Duration: ${
-            this.noSleepVideo.duration
-          }, Playing: ${!this.noSleepVideo.paused}, Playback Rate: ${
-            this.noSleepVideo.playbackRate
-          }`,
-          'info',
-          'video timeupdate',
-          {
-            currentTime,
-            ...(updatedTime !== undefined ? { updatedTime } : {}),
-            duration: this.noSleepVideo.duration,
-            paused: this.noSleepVideo.paused,
-            playbackRate: this.noSleepVideo.playbackRate,
-          },
-        );
-      });
-    });
+    this.handleError = this.handleError.bind(this);
+    this.noSleepVideo.addEventListener('error', this.handleError);
 
-    this.noSleepVideo.addEventListener('error', (e) => {
-      console.error('video error', e);
-      this.onLogEvent?.(`video error: ${e}`, 'error', 'video error');
-      this.isEnabled = !this.noSleepVideo.paused;
-    });
+    this.handlePause = this.handlePause.bind(this);
+    this.noSleepVideo.addEventListener('pause', this.handlePause);
 
-    this.noSleepVideo.addEventListener('pause', () => {
-      this.onLogEvent?.('video pause', 'info', 'video pause');
-      this.isEnabled = false;
-    });
+    this.handleEnded = this.handleEnded.bind(this);
+    this.noSleepVideo.addEventListener('ended', this.handleEnded);
+  }
 
-    this.noSleepVideo.addEventListener('ended', () => {
-      this.onLogEvent?.('video ended', 'warn', 'video ended');
-      this.isEnabled = false;
+  handleLoadedMetadata() {
+    // Use a slow playback rate to stretch the video and mitigate failures from a busy app/device
+    this.noSleepVideo.playbackRate = 0.1;
+
+    this.noSleepVideo.addEventListener('timeupdate', () => {
+      let currentTime = this.noSleepVideo.currentTime;
+      let updatedTime;
+      if (this.noSleepVideo.currentTime > 0.5) {
+        updatedTime = this.noSleepVideo.currentTime = Math.random() * 0.5;
+      }
+      this.onLogEvent?.(
+        `video timeupdate Current Time: ${currentTime}, Duration: ${
+          this.noSleepVideo.duration
+        }, Playing: ${!this.noSleepVideo.paused}, Playback Rate: ${
+          this.noSleepVideo.playbackRate
+        }`,
+        'info',
+        'video timeupdate',
+        {
+          currentTime,
+          ...(updatedTime !== undefined ? { updatedTime } : {}),
+          duration: this.noSleepVideo.duration,
+          paused: this.noSleepVideo.paused,
+          playbackRate: this.noSleepVideo.playbackRate,
+        },
+      );
     });
+  }
+
+  handleError(e: Event | string | MediaError) {
+    console.error('video error', e);
+    this.onLogEvent?.(`video error: ${e}`, 'error', 'video error');
+    this.isEnabled = !this.noSleepVideo.paused;
+  }
+
+  handlePause() {
+    this.onLogEvent?.('video pause', 'info', 'video pause');
+    this.isEnabled = false;
+  }
+
+  handleEnded() {
+    this.onLogEvent?.('video ended', 'warn', 'video ended');
+    this.isEnabled = false;
   }
 
   _addSourceToVideo(
@@ -157,6 +197,20 @@ class NoSleepVideo implements INoSleep {
   disable() {
     this.noSleepVideo.pause();
     this.isEnabled = false;
+  }
+
+  dispose() {
+    // Remove event listeners
+    this.noSleepVideo.removeEventListener(
+      'loadedmetadata',
+      this.handleLoadedMetadata,
+    );
+    this.noSleepVideo.removeEventListener('error', this.handleError);
+    this.noSleepVideo.removeEventListener('pause', this.handlePause);
+    this.noSleepVideo.removeEventListener('ended', this.handleEnded);
+
+    // Remove the video element from the DOM
+    document.body.removeChild(this.noSleepVideo);
   }
 }
 
