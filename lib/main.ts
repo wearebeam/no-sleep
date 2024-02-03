@@ -160,6 +160,17 @@ class NoSleepVideo implements INoSleep {
   }
 }
 
+/**
+ * Factory method to force creation of the video-based implementation of NoSleep.
+ * Useful for simulating a browser/platform where video is used from another
+ * browser where it is not.
+ */
+export const createNoSleepVideo = (options?: {
+  videoTitle?: string;
+  videoSourceType?: 'webm' | 'mp4';
+  onLogEvent?: LogEventCallback;
+}): INoSleep => new NoSleepVideo(options);
+
 type LogEventCallback = (
   message: string,
   level: string,
