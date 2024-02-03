@@ -1,9 +1,10 @@
 {
-  "name": "@zakj/no-sleep",
-  "version": "0.13.5",
-  "author": "Zak Johnson <me@zakj.net> (https://zakj.net)",
+  "name": "@scottjgilroy/no-sleep",
+  "version": "0.18.0",
+  "author": "Scott Gilroy <scottjgilroy@gmail.com>",
   "contributors": [
-    "Rich Tibbett"
+    "Rich Tibbett",
+    "Zak Johnson <me@zakj.net> (https://zakj.net)"
   ],
   "license": "MIT",
   "description": "Prevent display sleep and enable wake lock in any Android or iOS web browser",
@@ -17,7 +18,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/zakj/NoSleep.js.git"
+    "url": "https://github.com/sgilroy/no-sleep.git"
   },
   "prettier": "@zakj/prettier-config",
   "eslintConfig": {
@@ -34,9 +35,9 @@
     "vite": "^4.4.11",
     "vite-plugin-dts": "^3.6.0"
   },
-  "homepage": "https://github.com/zakj/NoSleep.js",
+  "homepage": "https://github.com/sgilroy/no-sleep",
   "bugs": {
-    "url": "https://github.com/zakj/NoSleep.js/issues"
+    "url": "https://github.com/sgilroy/no-sleep/issues"
   },
   "type": "module",
   "files": [
