@@ -5,9 +5,27 @@ export interface INoSleep {
   enable(): Promise<void>;
   disable(): void;
   dispose(): void;
+  on(event: 'enabled' | 'released' | 'error', listener: Function): void;
 }
 
-class NoSleepSSR implements INoSleep {
+class EventEmitter {
+  private events: { [event: string]: Function[] } = {};
+
+  on(event: string, listener: Function) {
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(listener);
+  }
+
+  emit(event: string, ...args: any[]) {
+    if (this.events[event]) {
+      this.events[event].forEach((listener) => listener(...args));
+    }
+  }
+}
+
+class NoSleepSSR extends EventEmitter implements INoSleep {
   isEnabled = false;
   enable(): Promise<void> {
     throw new Error('NoSleep using SSR/no-op mode; do not call enable.');
@@ -17,12 +35,12 @@ class NoSleepSSR implements INoSleep {
   }
   dispose() {}
 }
-
-class NoSleepNative implements INoSleep {
+class NoSleepNative extends EventEmitter implements INoSleep {
   isEnabled = false;
   wakeLock?: WakeLockSentinel;
 
   constructor() {
+    super();
     this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     document.addEventListener('fullscreenchange', this.handleVisibilityChange);
@@ -36,15 +54,18 @@ class NoSleepNative implements INoSleep {
     try {
       this.wakeLock = await navigator.wakeLock.request('screen');
       this.isEnabled = true;
+      this.emit('enabled');
       console.debug('Wake Lock active.');
       this.wakeLock.addEventListener('release', () => {
         // TODO: Potentially emit an event for the page to observe since
         // Wake Lock releases happen when page visibility changes.
         // (https://web.dev/wakelock/#wake-lock-lifecycle)
+        this.emit('released');
         console.debug('Wake Lock released.');
       });
     } catch (err) {
       this.isEnabled = false;
+      this.emit('error', err);
       if (err instanceof Error) console.error(`${err.name}, ${err.message}`);
     }
   }
@@ -76,7 +97,7 @@ class NoSleepNative implements INoSleep {
   }
 }
 
-class NoSleepVideo implements INoSleep {
+class NoSleepVideo extends EventEmitter implements INoSleep {
   isEnabled = false;
   noSleepVideo: HTMLVideoElement;
   onLogEvent?: LogEventCallback;
@@ -86,6 +107,7 @@ class NoSleepVideo implements INoSleep {
     videoSourceType?: 'webm' | 'mp4';
     onLogEvent?: LogEventCallback;
   }) {
+    super();
     // Set up no sleep video element
     this.noSleepVideo = document.createElement('video');
     this.onLogEvent = options?.onLogEvent;
